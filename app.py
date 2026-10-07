@@ -4,13 +4,13 @@ from google.genai import types
 import json
 import pandas as pd
 
-st.set_page_config(page_title="ECOCIERGE - AI Carbon Concierge", layout="wide")
+st.set_page_config(page_title="ECOCIERGE - AI Carbon Concierge", page_icon="🌱", layout="wide")
 
-st.title("ECOCIERGE: AI Carbon Footprint Concierge for SMEs")
-st.caption("เพื่อการขับเคลื่อน SME สู่ธุรกิจคาร์บอนต่ำและ ESG ที่ทำได้จริง")
+st.title("🌱 ECOCIERGE: AI Carbon Footprint Concierge for SMEs")
+st.caption("ระบบผู้ช่วยอัจฉริยะสกัดข้อมูลใบเสร็จและประเมิน Carbon Footprint อัตโนมัติด้วย Gemini AI")
 
-api_key = st.secrets["GEMINI_API_KEY"]
-client = genai.Client(api_key=api_key)
+# เปลี่ยนมาให้กรอก API Key บนหน้าเว็บโดยตรง เพื่อแก้ปัญหาเรื่องรูปแบบคีย์
+api_key = st.text_input("กรอก Gemini API Key ของคุณ:", type="password")
 
 EMISSION_FACTORS = {
     "electricity": {"factor": 0.4999, "unit": "kWh", "scope": "Scope 2", "name": "ค่าไฟฟ้า"},
@@ -23,7 +23,7 @@ uploaded_file = st.file_uploader("อัปโหลดใบเสร็จค�
 if uploaded_file and api_key:
     st.image(uploaded_file, caption="เอกสารที่อัปโหลด", width=400)
     
-    if st.button("ให้ AI สกัดข้อมูลและคำนวณคาร์บอน"):
+    if st.button("🚀 ให้ AI สกัดข้อมูลและคำนวณคาร์บอน"):
         with st.spinner("AI กำลังอ่านข้อมูลจากเอกสาร..."):
             try:
                 client = genai.Client(api_key=api_key)
@@ -58,7 +58,7 @@ if uploaded_file and api_key:
                     ef_info = EMISSION_FACTORS[item_type]
                     carbon_footprint = amount * ef_info["factor"]
                     
-                    st.success("AI สกัดข้อมูลและคำนวณสำเร็จ!")
+                    st.success("✅ AI สกัดข้อมูลและคำนวณสำเร็จ!")
                     
                     col1, col2, col3 = st.columns(3)
                     col1.metric("ประเภทกิจกรรม", ef_info["name"])
@@ -74,7 +74,7 @@ if uploaded_file and api_key:
                     }])
                     st.dataframe(df, use_container_width=True)
                 else:
-                    st.warning("AI ไม่สามารถระบุประเภทบิลนี้ได้ กรุณาลองอัปโหลดภาพบิลค่าไฟหรือสลิปน้ำมันที่ชัดเจนขึ้น")
+                    st.warning("⚠️ AI ไม่สามารถระบุประเภทบิลนี้ได้ กรุณาลองอัปโหลดภาพบิลค่าไฟหรือสลิปน้ำมันที่ชัดเจนขึ้น")
                     
             except Exception as e:
                 st.error(f"เกิดข้อผิดพลาดในการประมวลผล: {e}")
