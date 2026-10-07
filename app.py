@@ -5,13 +5,13 @@ import json
 import pandas as pd
 
 # ตั้งค่าหน้าตาเว็บ
-st.set_page_config(page_title="ECOCIERGE - AI Carbon Concierge", page_icon="🌱", layout="wide")
+st.set_page_config(page_title="ECOCIERGE - AI Carbon Concierge", layout="wide")
 
-st.title("🌱 ECOCIERGE: AI Carbon Footprint Concierge for SMEs")
-st.caption("ระบบผู้ช่วยอัจฉริยะสกัดข้อมูลใบเสร็จและประเมิน Carbon Footprint อัตโนมัติด้วย Gemini AI")
+st.title("ECOCIERGE: AI Carbon Footprint Concierge for SMEs")
+st.caption("เพื่อการขับเคลื่อน SME สู่ธุรกิจคาร์บอนต่ำและ ESG ที่ทำได้จริง")
 
 # ช่องใส่ Gemini API Key
-api_key = st.text_input("กรอก Gemini API Key ของคุณ:", type="password")
+api_key = st.text_input("กรอก API Key ของคุณ:", type="password")
 
 # ฐานข้อมูล Emission Factor ของ อบก. (TGO)
 EMISSION_FACTORS = {
@@ -26,10 +26,9 @@ uploaded_file = st.file_uploader("อัปโหลดใบเสร็จค�
 if uploaded_file and api_key:
     st.image(uploaded_file, caption="เอกสารที่อัปโหลด", width=400)
     
-    if st.button("🚀 ให้ AI สกัดข้อมูลและคำนวณคาร์บอน"):
+    if st.button("ให้ AI สกัดข้อมูลและคำนวณคาร์บอน"):
         with st.spinner("AI กำลังอ่านข้อมูลจากเอกสาร..."):
             try:
-                # เรียกใช้งาน Gemini Client
                 client = genai.Client(api_key=api_key)
                 
                 # Prompt สั่งให้ AI อ่านภาพและแปลงเป็น JSON
@@ -45,7 +44,6 @@ if uploaded_file and api_key:
                 
                 bytes_data = uploaded_file.getvalue()
                 
-                # ส่งภาพให้ Gemini 1.5 Flash วิเคราะห์
                 response = client.models.generate_content(
                     model='gemini-1.5-flash',
                     contents=[
@@ -54,7 +52,6 @@ if uploaded_file and api_key:
                     ]
                 )
                 
-                # ทำความสะอาดข้อความ JSON ที่ได้จาก AI
                 cleaned_text = response.text.replace("```json", "").replace("```", "").strip()
                 data = json.loads(cleaned_text)
                 
@@ -65,15 +62,13 @@ if uploaded_file and api_key:
                     ef_info = EMISSION_FACTORS[item_type]
                     carbon_footprint = amount * ef_info["factor"]
                     
-                    st.success("✅ AI สกัดข้อมูลและคำนวณสำเร็จ!")
+                    st.success("AI สกัดข้อมูลและคำนวณสำเร็จ!")
                     
-                    # แสดงผล Metric
                     col1, col2, col3 = st.columns(3)
                     col1.metric("ประเภทกิจกรรม", ef_info["name"])
                     col2.metric("ปริมาณที่ใช้", f"{amount} {ef_info['unit']}")
                     col3.metric("ปริมาณคาร์บอน", f"{carbon_footprint:.2f} kgCO2e", delta=ef_info["scope"])
                     
-                    # ตารางสรุป
                     df = pd.DataFrame([{
                         "ประเภทรายการ": ef_info["name"],
                         "ปริมาณที่ใช้": f"{amount} {ef_info['unit']}",
@@ -83,7 +78,7 @@ if uploaded_file and api_key:
                     }])
                     st.dataframe(df, use_container_width=True)
                 else:
-                    st.warning("⚠️ AI ไม่สามารถระบุประเภทบิลนี้ได้ กรุณาลองอัปโหลดภาพบิลค่าไฟหรือสลิปน้ำมันที่ชัดเจนขึ้น")
+                    st.warning("AI ไม่สามารถระบุประเภทบิลนี้ได้ กรุณาลองอัปโหลดภาพบิลค่าไฟหรือสลิปน้ำมันที่ชัดเจนขึ้น")
                     
             except Exception as e:
                 st.error(f"เกิดข้อผิดพลาดในการประมวลผล: {e}")
