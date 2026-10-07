@@ -4,23 +4,20 @@ from google.genai import types
 import json
 import pandas as pd
 
-# ตั้งค่าหน้าตาเว็บ
 st.set_page_config(page_title="ECOCIERGE - AI Carbon Concierge", layout="wide")
 
 st.title("ECOCIERGE: AI Carbon Footprint Concierge for SMEs")
 st.caption("เพื่อการขับเคลื่อน SME สู่ธุรกิจคาร์บอนต่ำและ ESG ที่ทำได้จริง")
 
-# ช่องใส่ Gemini API Key
-api_key = st.text_input("กรอก API Key ของคุณ:", type="password")
+api_key = st.secrets["GEMINI_API_KEY"]
+client = genai.Client(api_key=api_key)
 
-# ฐานข้อมูล Emission Factor ของ อบก. (TGO)
 EMISSION_FACTORS = {
     "electricity": {"factor": 0.4999, "unit": "kWh", "scope": "Scope 2", "name": "ค่าไฟฟ้า"},
     "diesel": {"factor": 2.7081, "unit": "Litre", "scope": "Scope 1", "name": "น้ำมันดีเซล"},
     "gasoline": {"factor": 2.1896, "unit": "Litre", "scope": "Scope 1", "name": "น้ำมันเบนซิน"}
 }
 
-# ส่วนอัปโหลดเอกสาร
 uploaded_file = st.file_uploader("อัปโหลดใบเสร็จค่าไฟ หรือสลิปน้ำมัน (รูปภาพ JPG, PNG)", type=["jpg", "jpeg", "png"])
 
 if uploaded_file and api_key:
@@ -31,7 +28,6 @@ if uploaded_file and api_key:
             try:
                 client = genai.Client(api_key=api_key)
                 
-                # Prompt สั่งให้ AI อ่านภาพและแปลงเป็น JSON
                 prompt = """
                 คุณคือ AI ผู้เชี่ยวชาญด้าน Carbon Accounting สำหรับ SME
                 จงอ่านรูปภาพบิลหรือใบเสร็จนี้ แล้วสกัดข้อมูลออกมาเป็น JSON รูปแบบนี้เท่านั้น ห้ามมีข้อความอื่น:
