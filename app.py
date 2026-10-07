@@ -41,7 +41,7 @@ if uploaded_file and api_key:
                 bytes_data = uploaded_file.getvalue()
                 
                 response = client.models.generate_content(
-                    model='gemini-1.5-flash',
+                    model='gemini-2.5-flash',
                     contents=[
                         types.Part.from_bytes(data=bytes_data, mime_type=uploaded_file.type),
                         prompt
