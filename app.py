@@ -1,42 +1,89 @@
 import streamlit as st
+from google import genai
+from google.genai import types
 import json
 import pandas as pd
 
 # ตั้งค่าหน้าตาเว็บ
 st.set_page_config(page_title="ECOCIERGE - AI Carbon Concierge", page_icon="🌱", layout="wide")
 
-st.title("🌱 ECOCIERGE: AI Carbon Footprint Calculator for SMEs")
-st.caption("ระบบผู้ช่วยอัจฉริยะประเมิน Carbon Footprint อัตโนมัติสำหรับ SME ไทย")
+st.title("🌱 ECOCIERGE: AI Carbon Footprint Concierge for SMEs")
+st.caption("ระบบผู้ช่วยอัจฉริยะสกัดข้อมูลใบเสร็จและประเมิน Carbon Footprint อัตโนมัติด้วย Gemini AI")
 
-# ฐานข้อมูล Emission Factor ล่าสุดของ อบก. (TGO)
+# ช่องใส่ Gemini API Key
+api_key = st.text_input("กรอก Gemini API Key ของคุณ:", type="password")
+
+# ฐานข้อมูล Emission Factor ของ อบก. (TGO)
 EMISSION_FACTORS = {
-    "บิลค่าไฟฟ้า (Electricity)": {"factor": 0.4999, "unit": "kWh", "scope": "Scope 2"},
-    "สลิปน้ำมันดีเซล (Diesel)": {"factor": 2.7081, "unit": "Litre", "scope": "Scope 1"},
-    "สลิปน้ำมันเบนซิน (Gasoline)": {"factor": 2.1896, "unit": "Litre", "scope": "Scope 1"}
+    "electricity": {"factor": 0.4999, "unit": "kWh", "scope": "Scope 2", "name": "ค่าไฟฟ้า"},
+    "diesel": {"factor": 2.7081, "unit": "Litre", "scope": "Scope 1", "name": "น้ำมันดีเซล"},
+    "gasoline": {"factor": 2.1896, "unit": "Litre", "scope": "Scope 1", "name": "น้ำมันเบนซิน"}
 }
 
-# ส่วนรับข้อมูลในแอป
-st.subheader("1. เลือกประเภทเอกสารและระบุปริมาณการใช้งาน")
-selected_type = st.selectbox("เลือกประเภทเอกสาร/กิจกรรม:", list(EMISSION_FACTORS.keys()))
-amount = st.number_input("ระบุปริมาณที่ใช้ (หน่วยตามประเภทเอกสาร):", min_value=0.0, value=100.0)
+# ส่วนอัปโหลดเอกสาร
+uploaded_file = st.file_uploader("อัปโหลดใบเสร็จค่าไฟ หรือสลิปน้ำมัน (รูปภาพ JPG, PNG)", type=["jpg", "jpeg", "png"])
 
-if st.button("🚀 คำนวณ Carbon Footprint"):
-    ef_info = EMISSION_FACTORS[selected_type]
-    carbon_footprint = amount * ef_info["factor"]
+if uploaded_file and api_key:
+    st.image(uploaded_file, caption="เอกสารที่อัปโหลด", width=400)
     
-    st.success("✅ คำนวณผลลัพธ์สำเร็จ!")
-    
-    col1, col2, col3 = st.columns(3)
-    col1.metric("ประเภทกิจกรรม", selected_type.split(" ")[0])
-    col2.metric("ปริมาณที่ใช้", f"{amount} {ef_info['unit']}")
-    col3.metric("ปริมาณคาร์บอน", f"{carbon_footprint:.2f} kgCO2e", delta=ef_info["scope"])
-    
-    # แสดงตารางสรุป
-    df = pd.DataFrame([{
-        "ประเภทรายการ": selected_type,
-        "ปริมาณที่ใช้": f"{amount} {ef_info['unit']}",
-        "Emission Factor (TGO)": ef_info["factor"],
-        "Scope": ef_info["scope"],
-        "Carbon Footprint (kgCO2e)": round(carbon_footprint, 2)
-    }])
-    st.dataframe(df, use_container_width=True)
+    if st.button("🚀 ให้ AI สกัดข้อมูลและคำนวณคาร์บอน"):
+        with st.spinner("AI กำลังอ่านข้อมูลจากเอกสาร..."):
+            try:
+                # เรียกใช้งาน Gemini Client
+                client = genai.Client(api_key=api_key)
+                
+                # Prompt สั่งให้ AI อ่านภาพและแปลงเป็น JSON
+                prompt = """
+                คุณคือ AI ผู้เชี่ยวชาญด้าน Carbon Accounting สำหรับ SME
+                จงอ่านรูปภาพบิลหรือใบเสร็จนี้ แล้วสกัดข้อมูลออกมาเป็น JSON รูปแบบนี้เท่านั้น ห้ามมีข้อความอื่น:
+                {
+                    "item_type": "electricity" หรือ "diesel" หรือ "gasoline" หรือ "unknown",
+                    "amount": ตัวเลขปริมาณการใช้งาน เช่น 150.5 (ถ้าไม่มีให้ใส่ 0),
+                    "unit": "kWh" หรือ "Litre" หรือ "unknown"
+                }
+                """
+                
+                bytes_data = uploaded_file.getvalue()
+                
+                # ส่งภาพให้ Gemini 1.5 Flash วิเคราะห์
+                response = client.models.generate_content(
+                    model='gemini-1.5-flash',
+                    contents=[
+                        types.Part.from_bytes(data=bytes_data, mime_type=uploaded_file.type),
+                        prompt
+                    ]
+                )
+                
+                # ทำความสะอาดข้อความ JSON ที่ได้จาก AI
+                cleaned_text = response.text.replace("```json", "").replace("```", "").strip()
+                data = json.loads(cleaned_text)
+                
+                item_type = data.get("item_type", "unknown")
+                amount = float(data.get("amount", 0))
+                
+                if item_type in EMISSION_FACTORS:
+                    ef_info = EMISSION_FACTORS[item_type]
+                    carbon_footprint = amount * ef_info["factor"]
+                    
+                    st.success("✅ AI สกัดข้อมูลและคำนวณสำเร็จ!")
+                    
+                    # แสดงผล Metric
+                    col1, col2, col3 = st.columns(3)
+                    col1.metric("ประเภทกิจกรรม", ef_info["name"])
+                    col2.metric("ปริมาณที่ใช้", f"{amount} {ef_info['unit']}")
+                    col3.metric("ปริมาณคาร์บอน", f"{carbon_footprint:.2f} kgCO2e", delta=ef_info["scope"])
+                    
+                    # ตารางสรุป
+                    df = pd.DataFrame([{
+                        "ประเภทรายการ": ef_info["name"],
+                        "ปริมาณที่ใช้": f"{amount} {ef_info['unit']}",
+                        "Emission Factor (TGO)": ef_info["factor"],
+                        "Scope": ef_info["scope"],
+                        "Carbon Footprint (kgCO2e)": round(carbon_footprint, 2)
+                    }])
+                    st.dataframe(df, use_container_width=True)
+                else:
+                    st.warning("⚠️ AI ไม่สามารถระบุประเภทบิลนี้ได้ กรุณาลองอัปโหลดภาพบิลค่าไฟหรือสลิปน้ำมันที่ชัดเจนขึ้น")
+                    
+            except Exception as e:
+                st.error(f"เกิดข้อผิดพลาดในการประมวลผล: {e}")
